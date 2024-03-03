@@ -65,7 +65,7 @@ class Record:
         for i in range(len(self.phones)):
             if self.phones[i].value == phone:
                 return i
-            return None
+        return None
 
     @input_error
     def remove_phone(self, phone):
@@ -87,10 +87,10 @@ class Record:
 
     @input_error
     def find_phone(self, phone):
-        if phone in map(str, self.phones):
-            return phone
-        else:
-            return f"Phone {phone} not found in {self.name} contact."
+        for phone_obj in self.phones:
+            if phone_obj.value == phone:
+                return phone_obj
+        return None
 
     @input_error
     def contact_phone(self, name):
@@ -134,13 +134,12 @@ class AddressBook(UserDict):
 
     @input_error
     def birthdays(self) -> list:
-        self.book = self
         congratulation_list = []
         current_date = datetime.today().date()
         birthday_list = ""
 
-        for v in self.book.book:
-            birthday = self.book[v].birthday
+        for v in self.data.values():  # Проходимо всі записи у книзі контактів
+            birthday = v.birthday
             if birthday is not None:
                 birthday = birthday.value
                 birthday = birthday.replace(year=current_date.year)
@@ -153,7 +152,7 @@ class AddressBook(UserDict):
                         birthday = birthday + timedelta(days=1)
                     congratulation_list.append(
                         {
-                            "name": self.book[v].name.value,
+                            "name": v.name.value,
                             "congratulation_day": birthday.strftime("%d.%m.%Y"),
                         }
                     )
