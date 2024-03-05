@@ -117,7 +117,9 @@ def main():
     """Основна функція програми."""
     book = AddressBook()
     print("Ласкаво просимо до помічника!")
-    print("Доступні команди: add, change, phone, all, add-birthday, show-birthday, birthdays, hello, close або exit")
+    print(
+        "Доступні команди: add, change, phone, all, add-birthday, show-birthday, birthdays, hello, close або exit"
+    )
     while True:
         user_input = input("Введіть команду: ")
         command, *args = parse_input(user_input)
@@ -159,6 +161,7 @@ def main():
 
         else:
             print("Невірна команда.")
+
 
 if __name__ == "__main__":
     main()
