@@ -17,32 +17,32 @@ class Name(Field):
 
 class Phone(Field):
     def __init__(self, value):
-        # Перевірка правильності формату номеру телефону
-        if not self._validate_phone(value):
-            raise ValueError("Номер повинен складатися з 10 цифер.")
-        super().__init__(value)
+        self.__value = None
+        self.value = value
 
-    def _validate_phone(self, value):
-        return isinstance(value, str) and len(value) == 10 and value.isdigit()
+    @property
+    def value(self):
+        return self.__value
+
+    @value.setter
+    def value(self, value):
+        if len(value) == 10 and value.isdigit():
+            self.__value = value
+        else:
+            raise ValueError(
+                "Невірний формат номера. Номер телефону має складатися з 10 цифр."
+            )
 
 
 class Birthday(Field):
     def __init__(self, value):
         # Перевірка правильності формату дати народження
-        if not self._validate_date(value):
-            raise ValueError("Невірний формат дати. Використовуйте ДД.ММ.РРРР")
-        super().__init__(value)
-
-    def _validate_date(self, value):
+        date_format = "%d.%m.%Y"
         try:
-            datetime.strptime(value, "%d.%m.%Y")
-            return True
+            self.date = datetime.strptime(value, date_format).date()
+            super().__init__(value)
         except ValueError:
-            return False
-
-    def get_date_object(self):
-        # Повертає об'єкт date
-        return datetime.strptime(self.value, "%d.%m.%Y").date()
+            raise ValueError("Невірний формат дати. Використовуйте ДД.ММ.РРРР")
 
 
 class Record:
@@ -60,7 +60,7 @@ class Record:
 
     def remove_phone(self, phone):
         # Видалення телефонного номера
-        self.phones = [p for p in self.phones if p.value != phone]
+        self.phones = [p for p in self.phones if str(p) != phone]
 
     def edit_phone(self, old_phone, new_phone):
         # Редагування телефонного номера
@@ -71,10 +71,7 @@ class Record:
 
     def find_phone(self, phone):
         # Пошук телефонного номера
-        for p in self.phones:
-            if p.value == phone:
-                return p
-        return None
+        return next((p for p in self.phones if p.value == phone), None)
 
     def add_birthday(self, birthday):
         # Додавання дати народження
@@ -101,73 +98,42 @@ class AddressBook(UserDict):
         if name in self.data:
             del self.data[name]
 
-    def get_upcoming_birthdays(self):
+    @staticmethod
+    def find_next_weekday(d, weekday):
+        """
+        Функція для знаходження наступного заданого дня тижня після заданої дати.
+        d: datetime.date - початкова дата.
+        weekday: int - день тижня від 0 (понеділок) до 6 (неділя).
+        """
+        days_ahead = weekday - d.weekday()
+        if days_ahead <= 0:  # Якщо день народження вже минув у цьому тижні.
+            days_ahead += 7
+        return d + timedelta(days_ahead)
+
+    def get_upcoming_birthdays(self, days=7) -> list:
         today = datetime.today().date()
-        upcoming_bdays = []
+        upcoming_birthdays = []
 
-        for record in self.data.values():
-            if record.birthday:
-                bday = record.birthday.get_date_object()
+        for user in self.data.values():
+            if user.birthday is None:
+                continue
+            birthday_this_year = user.birthday.date.replace(year=today.year)
 
-                # Визначення дати наступного для народження
-                bday_this_year = bday.replace(year=today.year)
+            if birthday_this_year < today:
+                birthday_this_year = birthday_this_year.replace(year=today.year + 1)
 
-                if bday_this_year < today:
-                    bday = bday.replace(year=today.year + 1)
-                else:
-                    bday = bday_this_year
+            if 0 <= (birthday_this_year - today).days <= days:
+                if birthday_this_year.weekday() >= 5:  # субота або неділя
+                    birthday_this_year = self.find_next_weekday(
+                        birthday_this_year, 0
+                    )  # Понеділок
 
-                days_until_bday = (bday - today).days
+                congratulation_date_str = birthday_this_year.strftime("%Y.%m.%d")
+                upcoming_birthdays.append(
+                    {
+                        "name": user.name.value,
+                        "congratulation_date": congratulation_date_str,
+                    }
+                )
 
-                # Перевірка чи наступний день відбудеться протягом наступного тижня
-                if 0 <= days_until_bday <= 7:
-                    if bday.weekday() >= 5:
-                        days_until_monday = 7 - bday.weekday()
-                        bday += timedelta(days_until_monday)
-
-                    upcoming_bdays.append(
-                        {
-                            "name": record.name.value,
-                            "congratulation_date": bday.strftime("%Y.%m.%d"),
-                        }
-                    )
-
-        return upcoming_bdays
-
-    def __str__(self):
-        # Представлення телефонної книги у зрозумілому формуті
-        return "\n".join(str(record) for record in self.data.values())
-
-
-# # Створення нової адресної книги
-# book = AddressBook()
-
-# # Створення запису для John
-# john_record = Record("John")
-# john_record.add_phone("1234567890")
-# john_record.add_phone("5555555555")
-
-# # Додавання запису John до адресної книги
-# book.add_record(john_record)
-
-# # Створення та додавання нового запису для Jane
-# jane_record = Record("Jane")
-# jane_record.add_phone("9876543210")
-# book.add_record(jane_record)
-
-# # Виведення всіх записів у книзі
-# for name, record in book.data.items():
-#     print(record)
-
-# # Знаходження та редагування телефону для John
-# john = book.find("John")
-# john.edit_phone("1234567890", "1112223333")
-
-# print(john)  # Виведення: Contact name: John, phones: 1112223333; 5555555555
-
-# # Пошук конкретного телефону у записі John
-# found_phone = john.find_phone("5555555555")
-# print(f"{john.name}: {found_phone}")  # Виведення: 5555555555
-
-# # Видалення запису Jane
-# book.delete("Jane")
+        return upcoming_birthdays
